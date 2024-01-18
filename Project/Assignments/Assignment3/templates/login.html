@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Form</title>
+    <link rel="stylesheet" type="text/css" href="{{url_for('static',filename='style.css')}}">
+</head>
+<body>
+    <div class="login-form">
+        <h1>Login</h1>
+        <form action="/testApi" method="Post">
+            <p>User Name</p>
+            <input type="email" name="username" placeholder="Enter User Name">
+            <p>Password</p>
+            <input type="password" name="Password" placeholder="Enter Password">
+            <button type="submit" >Login</button>
+            <br>
+            <a href="registration">You are Not Registered.Click Here</a>
+        </form>
+    </div>
+        <h4>{{output}}</h4>
+</body>
+</html>

@@ -1,0 +1,20 @@
+ apiVersion: apps/v1
+ kind: Deployment
+ metadata:
+   name: arunquote
+ spec:
+   replicas: 5
+   selector:
+     matchLabels:
+       app: arunquote
+   template:
+     metadata:
+       labels:
+         app: arunquote
+     spec:
+       containers:
+       - name: arunquote
+         image: us.icr.io/arunquote/quote
+         imagePullPolicy: Always
+         ports:
+         - containerPort: 5000

@@ -1,0 +1,62 @@
+*{
+    padding: 0;
+    margin: 0;
+    font-family: 'Courier New', Courier, monospace;
+}
+body{
+    background: cornflowerblue;
+}
+.login-form
+{
+    box-shadow: 0 8px 16px rgba(0,0,0,2);
+}
+.login-form{
+    width: 450px;
+
+    top:50%;
+    left: 50%;
+    transform: translate(-50%,-50%);
+    position: absolute;
+    color: aliceblue;
+}
+.login-form h1{
+    font-size: 40px;
+    text-align: center;
+    text-transform: uppercase;
+    margin: 40px 0;
+}
+.login-form p{
+    font-size: 20px;
+    margin: 15px ;
+    margin-left: 20px;
+}
+.login-form input{
+    font-size: 16px;
+    width: 80%;
+    margin-left: 20px;
+    padding: 15px 10px;
+    border: 0;
+    outline: none;
+    border-radius: 3px;
+}
+.login-form button{
+    font-size: 18px;
+    font-weight: bold;
+    margin-top: 30px;
+    margin-left: 25%;
+    padding: 10px 15px;
+    width: 50%;
+    border-radius: 5px;
+    cursor: pointer;    
+    margin-bottom: 20px;
+}
+a{
+  margin-left :15%;
+  margin-bottom:15px;
+}
+h4
+{
+    text-align:center;
+    font-weight:bold;
+    text-color:red;
+}
