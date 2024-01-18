@@ -1,0 +1,452 @@
+Source Code Link : https://drive.google.com/drive/folders/1v1s-KsFTgHzbD1HUkV8o4CHYHaxjNsGS?usp=share_link
+
+
+SOURCE CODE (app.py):
+
+from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory
+import ibm_db
+import hashlib
+import re
+import base64
+import os
+import ibm_boto3
+from ibm_botocore.client import Config, ClientError
+
+app = Flask(__name__, template_folder='templates')
+app.secret_key = 'your_secret_key_here'
+
+con = ibm_db.connect(
+    "DATABASE=bludb;HOSTNAME=6667d8e9-9d4d-4ccb-ba32-21da3bb5aafc.c1ogj3sd0tgtu0lqde00.databases.appdomain.cloud;SECURITY=SSL;SSLServerCertificate=DigiCertGlobalRootCA.crt;PORT=30376;UID=jzq07802;PWD=qcD51CuyiHXPof1o;",
+    "", "")
+print("DB2 Connected")
+
+COS_ENDPOINT = "https://s3.us-south.cloud-object-storage.appdomain.cloud"
+COS_API_KEY_ID = "wJtpROFaCsR5CbCiWSqvSvpEnzA8PrBbggGokrh4EzB2"
+COS_INSTANCE_CRN = "crn:v1:bluemix:public:iam-identity::a/ad6d73fbdf024325922a8343101ffb95::serviceid:ServiceId-0cfa7c67-ef7f-40d1-8296-dd103f125264"
+cos = ibm_boto3.client("s3", ibm_api_key_id=COS_API_KEY_ID, ibm_service_instance_id=COS_INSTANCE_CRN,
+                       config=Config(signature_version="s3v4"), endpoint_url=COS_ENDPOINT)
+
+
+@app.route("/", methods=['POST', 'GET'])
+def dashboard():
+    return render_template('home.html')
+
+
+@app.route("/login", methods=['POST', 'GET'])
+def login():
+    msg = '';
+    if (request.method == "POST"):
+        EMAIL = request.form.get("email")
+        PASSWORD = request.form.get("password")
+        sql = "SELECT * FROM USERN WHERE EMAIL=? AND PASSWORD=?"
+        stmt = ibm_db.prepare(con, sql)
+        ibm_db.bind_param(stmt, 1, EMAIL)
+        ibm_db.bind_param(stmt, 2, PASSWORD)
+        ibm_db.execute(stmt)
+        account = ibm_db.fetch_assoc(stmt)
+        print(account)
+        if (account):
+            session['Loggedin'] = True
+            session['USERID'] = account['USERID']
+            session['USERNAME'] = account['USERNAME']
+            msg = "logged Successfully"
+            return render_template('/postComplaints.html', msg=' ')
+        else:
+            msg = "Incorrect Email/Password"
+            return render_template('/login.html', msg=msg)
+    return render_template('login.html', msg=msg)
+
+
+@app.route("/adminLogin", methods=['POST', 'GET'])
+def adminLogin():
+    msg = '';
+    if (request.method == "POST"):
+        email = request.form.get("email")
+        PASSWORD = request.form.get("password")
+        sql = "SELECT * FROM USERN WHERE EMAIL=? AND PASSWORD=?"
+        stmt = ibm_db.prepare(con, sql)
+        ibm_db.bind_param(stmt, 1, email)
+        ibm_db.bind_param(stmt, 2, PASSWORD)
+        ibm_db.execute(stmt)
+        account = ibm_db.fetch_assoc(stmt)
+        print(account)
+        if (account):
+            session['Loggedin'] = True
+            session['USERID'] = account['USERID']
+            session['USERNAME'] = account['USERNAME']
+            msg = "logged Successsfully"
+            return render_template('/adminHome.html', msg=msg)
+        else:
+            msg = "Incorrect Email/Password"
+            return render_template('/adminLogin.html', msg=msg)
+    return render_template('adminLogin.html', msg=msg)
+
+
+@app.route("/agentLogin", methods=['POST', 'GET'])
+def agentLogin():
+    msg = '';
+    if (request.method == "POST"):
+        EMAIL = request.form.get("email")
+        PASSWORD = request.form.get("password")
+        sql = "SELECT * FROM USERN WHERE EMAIL=? AND PASSWORD=?"
+        stmt = ibm_db.prepare(con, sql)
+        ibm_db.bind_param(stmt, 1, EMAIL)
+        ibm_db.bind_param(stmt, 2, PASSWORD)
+        ibm_db.execute(stmt)
+        account = ibm_db.fetch_assoc(stmt)
+        print(account)
+        if (account):
+            session['Loggedin'] = True
+            session['USERID'] = account['USERID']
+            session['USERNAME'] = account['USERNAME']
+            msg = "logged Successsfully"
+            return render_template('/agentHome.html', msg=msg)
+        else:
+            msg = "Incorrect Email/Password"
+            return render_template('/agentLogin.html', msg=msg)
+    return render_template('agentLogin.html', msg=msg)
+
+
+@app.route("/register", methods=['POST', 'GET'])
+def register():
+    msg = ''
+    print("hello")
+    if (request.method == "POST"):
+        print("Hello")
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        ROLE = 'USER';
+        sql = "SELECT *FROM  USERN WHERE EMAIL=? AND PASSWORD=?"
+        stmt = ibm_db.prepare(con, sql)
+        ibm_db.bind_param(stmt, 1, email)
+        ibm_db.bind_param(stmt, 2, password)
+        ibm_db.execute(stmt)
+        account = ibm_db.fetch_assoc(stmt)
+        print(account)
+        if account:
+            msg = "Your signup details  already exits please login"
+        elif not re.match(r'[^@]+@[^@]+\.[^@]+', email):
+            msg = "Invalid Email Address"
+        else:
+            sql = "SELECT COUNT(*) FROM USERN"
+            stmt = ibm_db.prepare(con, sql)
+            ibm_db.execute(stmt)
+            length = ibm_db.fetch_assoc(stmt)
+            print(length)
+            insert_sql = "INSERT INTO USERN VALUES (?,?,?,?,?)"
+            prep_stmt = ibm_db.prepare(con, insert_sql)
+            ibm_db.bind_param(prep_stmt, 1, length['1'] + 1)
+            ibm_db.bind_param(prep_stmt, 2, ROLE)
+            ibm_db.bind_param(prep_stmt, 3, username)
+            ibm_db.bind_param(prep_stmt, 4, email)
+            ibm_db.bind_param(prep_stmt, 5, password)
+            ibm_db.execute(prep_stmt)
+            msg = "You have  Successfully Registered !!!"
+    print(msg)
+    return render_template("register.html", msg=msg)
+
+
+@app.route("/adminRegister", methods=['POST', 'GET'])
+def adminRegister():
+    msg = ''
+    print("hello")
+    if (request.method == "POST"):
+        print("Hello")
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        ROLE = 'ADMIN'
+        secret_key = request.form.get('secret')
+
+        sql = "SELECT *FROM  USERN WHERE EMAIL=? AND PASSWORD=?"
+        stmt = ibm_db.prepare(con, sql)
+        ibm_db.bind_param(stmt, 1, email)
+        ibm_db.bind_param(stmt, 2, password)
+        ibm_db.execute(stmt)
+        account = ibm_db.fetch_assoc(stmt)
+        print(account)
+        if account:
+            secret_key == "12345"
+            msg = "Your signup details  already exits please login"
+            return render_template("adminRegister.html", msg=msg)
+        elif not re.match(r'[^@]+@[^@]+\.[^@]+', email):
+            msg = "Invalid Email Address"
+        else:
+            secret_key = "12345"
+            sql = "SELECT COUNT(*) FROM USERN"
+            stmt = ibm_db.prepare(con, sql)
+            ibm_db.execute(stmt)
+            length = ibm_db.fetch_assoc(stmt)
+            print(length)
+            insert_sql = "INSERT INTO USERN VALUES (?,?,?,?,?)"
+            prep_stmt = ibm_db.prepare(con, insert_sql)
+            ibm_db.bind_param(prep_stmt, 1, length['1'] + 1)
+            ibm_db.bind_param(prep_stmt, 2, ROLE)
+            ibm_db.bind_param(prep_stmt, 3, username)
+            ibm_db.bind_param(prep_stmt, 4, email)
+            ibm_db.bind_param(prep_stmt, 5, password)
+            ibm_db.execute(prep_stmt)
+            msg = "You have  Successfully Registered !!!"
+            return render_template("adminRegister.html", msg=msg)
+    print(msg)
+    return render_template("adminRegister.html", msg=msg)
+
+
+@app.route("/agentRegister", methods=['POST', 'GET'])
+def agentRegister():
+    msg = ''
+    print("hello")
+    if (request.method == "POST"):
+        print("Hello")
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        role = request.form.get('role')
+        secret_key = request.form.get('secret')
+        print(role)
+
+        sql = "SELECT *FROM  USERN WHERE EMAIL=? AND PASSWORD=?"
+        stmt = ibm_db.prepare(con, sql)
+        ibm_db.bind_param(stmt, 1, email)
+        ibm_db.bind_param(stmt, 2, password)
+        ibm_db.execute(stmt)
+        account = ibm_db.fetch_assoc(stmt)
+        print(account)
+        if account:
+            secret_key == "12345"
+            msg = "Your signup details  already exits please login"
+            return render_template("agentRegister.html", msg=msg)
+        elif not re.match(r'[^@]+@[^@]+\.[^@]+', email):
+            msg = "Invalid Email Address"
+        else:
+            secret_key = "12345"
+            sql = "SELECT COUNT(*) FROM USERN"
+            stmt = ibm_db.prepare(con, sql)
+            ibm_db.execute(stmt)
+            length = ibm_db.fetch_assoc(stmt)
+            print(length)
+            insert_sql = "INSERT INTO USERN VALUES (?,?,?,?,?)"
+            prep_stmt = ibm_db.prepare(con, insert_sql)
+            ibm_db.bind_param(prep_stmt, 1, length['1'] + 1)
+            ibm_db.bind_param(prep_stmt, 2, role)
+            ibm_db.bind_param(prep_stmt, 3, username)
+            ibm_db.bind_param(prep_stmt, 4, email)
+            ibm_db.bind_param(prep_stmt, 5, password)
+            ibm_db.execute(prep_stmt)
+            msg = "You have  Successfully Registered !!!"
+            return render_template("agentRegister.html", msg=msg)
+    print(msg)
+    return render_template("agentRegister.html", msg=msg)
+
+
+@app.route("/logout")
+def logout():
+    session.pop('loggedin', None)
+    session.pop('USERID', None)
+    return render_template('home.html')
+
+
+@app.route("/result", methods=['POST', 'GET'])
+def result():
+    msg = ''
+    if (request.method == 'POST'):
+        f = request.files['image']
+        basepath = os.path.dirname(__file__)
+        filepath = os.path.join(basepath, 'Uploads', f.filename)
+        f.save(filepath)
+        ##        cos.upload_file(Filename=filepath, Bucket='penyamineimages', Key='test.jpg')
+        msg = "Image Uploaded Successfully"
+    return render_template('postComplaints.html', msg=msg)
+
+
+def compute_image_id(image_data):
+    md5_hash = hashlib.md5(image_data).hexdigest()
+    return md5_hash
+
+
+@app.route('/postComplaints', methods=['POST', 'GET'])
+def postComplaints():
+    sql = "SELECT * FROM USERN WHERE USERID=" + str(session['USERID'])
+    stmt = ibm_db.prepare(con, sql)
+    ibm_db.execute(stmt)
+    User = ibm_db.fetch_tuple(stmt)
+    print(User)
+    print('data fetched')
+
+
+    if User[1] == '0':
+        if request.method == "POST":
+            f = request.files['image']
+            save_directory = os.path.join(app.root_path, 'static', 'Uploads')
+            f.save(os.path.join(save_directory, f.filename))
+            print(f.filename)
+            IMAGE_ID = f.filename
+            # Store the image ID in the DB2 database
+            DESCRIPTION = request.form.get("description")
+            ADDRESS = request.form.get("address")
+            PINCODE = request.form.get("pincode")
+
+            sql = "SELECT EMAIL FROM USERN WHERE USERID=" + str(session['USERID'])
+            stmt = ibm_db.prepare(con, sql)
+            ibm_db.execute(stmt)
+            EMAIL = ibm_db.fetch_tuple(stmt)[0]
+            print(EMAIL)
+            if (IMAGE_ID == ' '):
+                return render_template('postComplaints.html', data="Select the image")
+            else:
+                sql = "SELECT * FROM USERN WHERE USERID = " + str(session['USERID'])
+                stmt = ibm_db.prepare(con, sql)
+                ibm_db.execute(stmt)
+                data = ibm_db.fetch_assoc(stmt)
+                print(data)
+
+                sql = "SELECT COUNT(*) FROM TICKETS"
+                stmt = ibm_db.prepare(con, sql)
+                ibm_db.execute(stmt)
+                length = ibm_db.fetch_assoc(stmt)
+                print(length)
+
+                sql = "INSERT INTO TICKETS VALUES (?,?,?,NULL,?,?,?,?,?,NULL)"
+                stmt = ibm_db.prepare(con, sql)
+                ##   print('stmt')
+
+                ibm_db.bind_param(stmt, 1, length['1'] + 1)
+                ibm_db.bind_param(stmt, 2, data["USERNAME"])
+                ibm_db.bind_param(stmt, 3, EMAIL)
+                ibm_db.bind_param(stmt, 4, DESCRIPTION)
+                ibm_db.bind_param(stmt, 5, 'No')
+                ibm_db.bind_param(stmt, 6, ADDRESS)
+                ibm_db.bind_param(stmt, 7, PINCODE)
+                ibm_db.bind_param(stmt, 8, IMAGE_ID)
+                ibm_db.execute(stmt)
+    return render_template('postComplaints.html', msg="Your Complaints are provided to Successfully")
+
+
+@app.template_filter('custom_b64encode')
+def custom_b64encode(value):
+    encoded_bytes = base64.b64encode(value)
+    encoded_string = encoded_bytes.decode('utf-8')
+    return encoded_string
+
+
+@app.route('/viewComplaints', methods=["POST", "GET"])
+def viewComplaints():
+    print(str(session['USERID']))
+    stmt = ibm_db.prepare(con, "SELECT * FROM USERN WHERE USERID=" + str(session['USERID']))
+    ibm_db.execute(stmt)
+    User = ibm_db.fetch_tuple(stmt)
+    print(User)
+
+    sql = "SELECT EMAIL FROM USERN WHERE USERID=" + str(session['USERID'])
+    stmt = ibm_db.prepare(con, sql)
+    ibm_db.execute(stmt)
+    EMAIL = ibm_db.fetch_tuple(stmt)[0]
+
+    sql = "SELECT IMAGE_ID ,PROGRESS,AFTER_IMAGE_ID,DESCRIPTION,ADDRESS,PINCODE FROM TICKETS WHERE EMAIL = '"+EMAIL+"'"
+    stmt = ibm_db.exec_immediate(con, sql)
+
+    data = []
+    while True:
+        row = ibm_db.fetch_assoc(stmt)
+        if row:
+            row['IMAGE_ID'] = '../static/Uploads/' + row['IMAGE_ID']
+            if row['AFTER_IMAGE_ID']:
+                row['AFTER_IMAGE_ID']='../static/Completed/' + row['AFTER_IMAGE_ID']
+            data.append(row)
+        else:
+            break
+    return render_template('viewComplaints.html', data=data)
+
+@app.route('/adminHome', methods=["POST", "GET"])
+def adminHome():
+    print("admin Home")
+    sql = "SELECT USERID,USERNAME , IMAGE_ID,DESCRIPTION,PROGRESS,AFTER_IMAGE_ID FROM TICKETS WHERE PROGRESS = 'No' "
+    stmt = ibm_db.exec_immediate(con, sql)
+    data = []
+    while True:
+        row = ibm_db.fetch_assoc(stmt)
+        if row:
+            row['IMAGE_ID'] = '../static/Uploads/' + row['IMAGE_ID']
+            if row['AFTER_IMAGE_ID']:
+                row['AFTER_IMAGE_ID'] = '../static/Completed/' + row['AFTER_IMAGE_ID']
+            data.append(row)
+        else:
+            break
+
+    return render_template("adminHome.html", data=data)
+
+
+@app.route('/assign-agent', methods=['POST'])
+def assign_agent():
+
+    print("This is assign agent")
+    userId = request.form['userId']
+    roleId = request.form.get('roleId')
+    print(roleId)
+    print(userId)
+    sql = "UPDATE TICKETS SET ASSIGNED = ? WHERE  USERID= " + userId
+    stmt = ibm_db.prepare(con, sql)
+    ibm_db.bind_param(stmt, 1, roleId)
+    ibm_db.execute(stmt)
+    return redirect(url_for("adminHome"))
+
+
+@app.route('/agentHome', methods=["POST", "GET"])
+def agentHome():
+    print("agent Home")
+    EMAIL=request.form.get('email')
+    data = []
+    if EMAIL is not None:
+        role_sql = "SELECT ROLE FROM USERN WHERE EMAIL = '"+EMAIL+"'"
+        stmt = ibm_db.prepare(con, role_sql)
+        ibm_db.execute(stmt)
+
+        Role=ibm_db.fetch_tuple(stmt)
+
+        if Role:
+            Role=Role[0]
+            print(Role)
+            sql = "SELECT USERID, IMAGE_ID, USERNAME, ADDRESS, PINCODE, DESCRIPTION FROM TICKETS WHERE ASSIGNED = '"+Role+"'"
+            stmt = ibm_db.prepare(con, sql)
+            find = ibm_db.execute(stmt)
+            while True:
+                row = ibm_db.fetch_assoc(stmt)
+                if row:
+                    print("yes")
+                    row['IMAGE_ID'] = '../static/Uploads/' + row['IMAGE_ID']
+                    data.append(row)
+                else:
+                    print("No")
+                    break
+    return render_template("agentHome.html", data=data)
+
+@app.route('/assignWork', methods=["POST", "GET"])
+def assignWork():
+    if request.method == "POST":
+        userId = request.form.get("userId")
+        print(userId)
+        print(request.form)
+        f = request.files['image']
+        save_directory = os.path.join(app.root_path, 'static', 'Completed')
+        f.save(os.path.join(save_directory, f.filename))
+        progress = request.form['status']
+        after_image_id = f.filename
+
+        print(progress)
+        print(after_image_id)
+        print(userId)
+        sql = "UPDATE TICKETS SET PROGRESS = ?  WHERE  USERID= " + userId
+        stmt = ibm_db.prepare(con, sql)
+        ibm_db.bind_param(stmt, 1, progress)
+        ibm_db.execute(stmt)
+
+        sql = "UPDATE TICKETS SET AFTER_IMAGE_ID = ?  WHERE  USERID= " + userId
+        stmt = ibm_db.prepare(con, sql)
+        ibm_db.bind_param(stmt, 1, after_image_id)
+        ibm_db.execute(stmt)
+
+    return "Image Uploaded Successfully"
+
+if __name__ == '__main__':
+    app.run(debug=True,host='0.0.0.0')
